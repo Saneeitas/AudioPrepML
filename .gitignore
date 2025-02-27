@@ -1,0 +1,41 @@
+# Virtual environment
+venv/
+env/
+.env/
+Include/
+Lib/
+Scripts/
+pyvenv.cfg
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Common Python build/distribution files
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Dependency directories
+*.egg/
+wheels/
+
+# macOS-specific files
+.DS_Store
+
+# Editor/IDE files
+*.swp
+*.swo
+*.swn
+.vscode/
+.idea/
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Optional: Ignore large audio files if you don’t want them in the repo
+*.wav
+*.mp3
