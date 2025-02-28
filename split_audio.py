@@ -2,7 +2,7 @@ import os
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
 
-def split_audio_with_silence(file_path, output_folder, start_number, target_length=15000, min_silence_len=500, silence_thresh=-40):
+def split_audio_with_silence(file_path, output_folder, start_number, max_length=15000, min_silence_len=500, silence_thresh=-40):
     # Load the audio file
     audio = AudioSegment.from_file(file_path)
 
@@ -18,21 +18,38 @@ def split_audio_with_silence(file_path, output_folder, start_number, target_leng
         keep_silence=200                   # Keep some silence at the start/end of each chunk (in ms)
     )
 
-    # Merge chunks to approximate target_length (15 seconds)
+    # Merge chunks and enforce max_length
     merged_chunks = []
     current_chunk = AudioSegment.empty()
     
     for chunk in chunks:
-        if len(current_chunk) + len(chunk) <= target_length:
+        if len(current_chunk) + len(chunk) <= max_length:
             current_chunk += chunk
         else:
             if len(current_chunk) > 0:
+                # If current_chunk exceeds max_length, split it
+                while len(current_chunk) > max_length:
+                    merged_chunks.append(current_chunk[:max_length])
+                    current_chunk = current_chunk[max_length:]
                 merged_chunks.append(current_chunk)
             current_chunk = chunk
     
-    # Append the last chunk if it exists
+    # Append the last chunk if it exists, splitting if necessary
     if len(current_chunk) > 0:
+        while len(current_chunk) > max_length:
+            merged_chunks.append(current_chunk[:max_length])
+            current_chunk = current_chunk[max_length:]
         merged_chunks.append(current_chunk)
+
+    # Handle any remaining audio that didn't fit into chunks
+    total_length = sum(len(chunk) for chunk in merged_chunks)
+    if total_length < len(audio):
+        remaining = audio[total_length:]
+        while len(remaining) > max_length:
+            merged_chunks.append(remaining[:max_length])
+            remaining = remaining[max_length:]
+        if len(remaining) > 0:
+            merged_chunks.append(remaining)
 
     # Save the merged chunks with professional naming
     for i, chunk in enumerate(merged_chunks, start=start_number):
@@ -40,16 +57,6 @@ def split_audio_with_silence(file_path, output_folder, start_number, target_leng
         chunk_path = os.path.join(output_folder, chunk_name)
         chunk.export(chunk_path, format="wav")
         print(f"Saved {chunk_name} ({len(chunk)} ms)")
-
-    # Handle any remaining audio that didn't fit into chunks
-    total_length = sum(len(chunk) for chunk in merged_chunks)
-    if total_length < len(audio):
-        remaining = audio[total_length:]
-        if len(remaining) > 0:
-            chunk_name = f"training_audio_{len(merged_chunks) + start_number}.wav"
-            chunk_path = os.path.join(output_folder, chunk_name)
-            remaining.export(chunk_path, format="wav")
-            print(f"Saved {chunk_name} ({len(remaining)} ms)")
 
     # Return the next available number for tracking
     return len(merged_chunks) + start_number
@@ -77,7 +84,7 @@ if __name__ == "__main__":
         audio_file,
         output_folder,
         start_number=start_number,
-        target_length=15000,      # Target chunk length (15 seconds)
+        max_length=15000,         # Max chunk length (15 seconds)
         min_silence_len=500,     # Minimum silence length to split (adjustable)
         silence_thresh=-40       # Silence threshold (adjustable)
     )
